@@ -1,0 +1,32 @@
+enum age {
+	item unknown 0;
+	item eggsac 1;
+	item juvenile 2;
+	item adult 3;
+};
+
+struct place {
+	field name text limit gt 0 limit lt 256;
+	field altname text null limit ge 0 limit lt 256;
+	field latitude real limit ge -90 limit le 90;
+	field longitude real limit ge -180 limit le 180;
+	field id int rowid;
+};
+
+struct species {
+	field name text limit gt 0 limit lt 256;
+	field id int rowid;
+};
+
+struct sighting {
+	field placeid:place.id;
+	field speciesid:species.id;
+	field name text limit gt 0 limit lt 256;
+	field email email;
+	field cookie int;
+	field ctime epoch;
+	field age enum age;
+	field count int limit gt 0 limit le 100;
+	field id int rowid;
+	insert;
+};
