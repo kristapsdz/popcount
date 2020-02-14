@@ -69,7 +69,6 @@ send_submit(struct kreq *r)
 
 	age = r->fieldmap[VALID_SIGHTING_AGE]->parsed.i;
 
-	kutil_warnx(r, NULL, ">>>1");
 	db_sighting_insert(r->arg,
 		r->fieldmap[VALID_SIGHTING_PLACEID]->parsed.i,
 		r->fieldmap[VALID_SIGHTING_SPECIESID]->parsed.i,
