@@ -19,6 +19,10 @@ install: all
 	install -o www -m 0500 slugcount.cgi $(PREFIX)/cgi-bin
 	install -o www -m 0600 slugcount.db $(PREFIX)/data
 
+update: all
+	mkdir -p $(PREFIX)/cgi-bin
+	install -o www -m 0500 slugcount.cgi $(PREFIX)/cgi-bin
+
 slugcount.cgi: $(OBJS) slugcount.db
 	$(CC) -o $@ -static $(OBJS) $(LDFLAGS) $(LDADD)
 
