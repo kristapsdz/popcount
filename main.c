@@ -28,12 +28,14 @@
 
 enum	page {
 	PAGE_DELETE,
+	PAGE_NSUBMIT,
 	PAGE_SUBMIT,
 	PAGE__MAX
 };
 
 static const char *const pages[PAGE__MAX] = {
 	"delete", /* PAGE_DELETE */
+	"nsubmit", /* PAGE_NSUBMIT */
 	"submit", /* PAGE_SUBMIT */
 };
 
@@ -80,9 +82,43 @@ send_delete(struct kreq *r)
 }
 
 static void
+send_nsubmit(struct kreq *r)
+{
+	struct kpair	*kpp, *kps, *kpn, *kpe, *kpa;
+
+	if ((kpp = r->fieldmap[VALID_SIGHTING_PLACEID]) == NULL ||
+	    (kps = r->fieldmap[VALID_SIGHTING_SPECIESID]) == NULL ||
+	    (kpn = r->fieldmap[VALID_SIGHTING_NAME]) == NULL ||
+	    (kpe = r->fieldmap[VALID_SIGHTING_EMAIL]) == NULL ||
+	    (kpa = r->fieldmap[VALID_SIGHTING_AGE]) == NULL) {
+		http_open(r, KHTTP_403);
+		return;
+	}
+
+	while (kps != NULL && kpa != NULL) {
+		db_sighting_insert(r->arg,
+			kpp->parsed.i, /* placeid */
+			kps->parsed.i, /* speciesid */
+			kpn->parsed.s, /* name */
+			kpe->parsed.s, /* email */
+			arc4random(), /* cookie */
+			time(NULL), /* ctime */
+			(enum age)kpa->parsed.i, /* age */
+			0); /* count */
+		kps = kps->next;
+		kpa = kpa->next;
+	}
+
+	kutil_info(r, kpe->parsed.s,
+		"slug non-sighting: place-%" PRId64,
+		kpp->parsed.i);
+
+	http_open(r, KHTTP_201);
+}
+
+static void
 send_submit(struct kreq *r)
 {
-	enum age	 age;
 	int64_t		 cookie, id;
 	struct kjsonreq	 req;
 	struct kpair	*kpp, *kps, *kpn, *kpe, *kpa, *kpc;
@@ -97,7 +133,6 @@ send_submit(struct kreq *r)
 		return;
 	}
 
-	age = r->fieldmap[VALID_SIGHTING_AGE]->parsed.i;
 	cookie = arc4random();
 
 	id = db_sighting_insert(r->arg,
@@ -107,7 +142,7 @@ send_submit(struct kreq *r)
 		kpe->parsed.s, /* email */
 		cookie, /* cookie */
 		time(NULL), /* ctime */
-		age, /* age */
+		(enum age)kpa->parsed.i, /* age */
 		kpc->parsed.i); /* count */
 
 	if (id == -1) {
@@ -166,6 +201,9 @@ main(void)
 	switch (r.page) {
 	case PAGE_DELETE:
 		send_delete(&r);
+		break;
+	case PAGE_NSUBMIT:
+		send_nsubmit(&r);
 		break;
 	case PAGE_SUBMIT:
 		send_submit(&r);
