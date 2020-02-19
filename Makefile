@@ -9,7 +9,7 @@ CFLAGS	  	+= -g -W -Wall -Wextra -Wmissing-prototypes
 CFLAGS	  	+= -Wstrict-prototypes -Wwrite-strings -Wno-unused-parameter
 CFLAGS		+= -DDATADIR=\"$(DATADIR)\"
 LDFLAGS		+= -L/usr/local/lib
-LDADD		 = -lkcgi -lsqlbox -lsqlite3 -lz -lpthread -lm
+LDADD		 = -lkcgi -lkcgijson -lsqlbox -lsqlite3 -lz -lpthread -lm
 
 all: slugcount.cgi
 
@@ -29,7 +29,7 @@ slugcount.cgi: $(OBJS) slugcount.db
 clean:
 	rm -f $(OBJS) slugcount.cgi db.c extern.h slugcount.db db.sql
 
-db.o: extern.h
+$(OBJS): extern.h
 
 db.c: db.ort
 	ort-c-source -vh extern.h db.ort >$@

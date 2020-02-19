@@ -29,4 +29,5 @@ struct sighting {
 	field count int limit gt 0 limit le 100;
 	field id int rowid;
 	insert;
+	delete id, cookie, ctime gt: name recent;
 };

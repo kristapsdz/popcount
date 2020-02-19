@@ -22,15 +22,18 @@
 #include <unistd.h>
 
 #include <kcgi.h>
+#include <kcgijson.h>
 
 #include "extern.h"
 
 enum	page {
+	PAGE_DELETE,
 	PAGE_SUBMIT,
 	PAGE__MAX
 };
 
 static const char *const pages[PAGE__MAX] = {
+	"delete", /* PAGE_DELETE */
 	"submit", /* PAGE_SUBMIT */
 };
 
@@ -47,47 +50,84 @@ http_open(struct kreq *r, enum khttp code)
 	khttp_head(r, kresps[KRESP_EXPIRES], 
 		"%s", "0");
 	khttp_head(r, kresps[KRESP_CONTENT_TYPE], 
-		"%s", kmimetypes[KMIME_APP_OCTET_STREAM]);
+		"%s", kmimetypes[KMIME_APP_JSON]);
 	khttp_body(r);
+}
+
+static void
+send_delete(struct kreq *r)
+{
+	struct kpair	*kpi, *kpc;
+
+	if ((kpi = r->fieldmap[VALID_SIGHTING_ID]) == NULL ||
+	    (kpc = r->fieldmap[VALID_SIGHTING_COOKIE]) == NULL) {
+		http_open(r, KHTTP_403);
+		return;
+	}
+
+	/* Delete only within the last hour. */
+
+	db_sighting_delete_recent(r->arg,
+		kpi->parsed.i, /* id */
+		kpc->parsed.i, /* cookie */
+		time(NULL) - (60 * 60)); /* ctime (gt) */
+
+	kutil_info(r, NULL,
+		"sighting (maybe) deleted: sighting-%" PRId64 ,
+		kpi->parsed.i);
+
+	http_open(r, KHTTP_201);
 }
 
 static void
 send_submit(struct kreq *r)
 {
 	enum age	 age;
+	int64_t		 cookie, id;
+	struct kjsonreq	 req;
+	struct kpair	*kpp, *kps, *kpn, *kpe, *kpa, *kpc;
 
-	if (r->fieldmap[VALID_SIGHTING_PLACEID] == NULL ||
-	    r->fieldmap[VALID_SIGHTING_SPECIESID] == NULL ||
-	    r->fieldmap[VALID_SIGHTING_NAME] == NULL ||
-	    r->fieldmap[VALID_SIGHTING_EMAIL] == NULL ||
-	    r->fieldmap[VALID_SIGHTING_COOKIE] == NULL ||
-	    r->fieldmap[VALID_SIGHTING_AGE] == NULL ||
-	    r->fieldmap[VALID_SIGHTING_COUNT] == NULL) {
+	if ((kpp = r->fieldmap[VALID_SIGHTING_PLACEID]) == NULL ||
+	    (kps = r->fieldmap[VALID_SIGHTING_SPECIESID]) == NULL ||
+	    (kpn = r->fieldmap[VALID_SIGHTING_NAME]) == NULL ||
+	    (kpe = r->fieldmap[VALID_SIGHTING_EMAIL]) == NULL ||
+	    (kpa = r->fieldmap[VALID_SIGHTING_AGE]) == NULL ||
+	    (kpc = r->fieldmap[VALID_SIGHTING_COUNT]) == NULL) {
 		http_open(r, KHTTP_403);
 		return;
 	}
 
 	age = r->fieldmap[VALID_SIGHTING_AGE]->parsed.i;
+	cookie = arc4random();
 
-	db_sighting_insert(r->arg,
-		r->fieldmap[VALID_SIGHTING_PLACEID]->parsed.i,
-		r->fieldmap[VALID_SIGHTING_SPECIESID]->parsed.i,
-		r->fieldmap[VALID_SIGHTING_NAME]->parsed.s,
-		r->fieldmap[VALID_SIGHTING_EMAIL]->parsed.s,
-		r->fieldmap[VALID_SIGHTING_COOKIE]->parsed.i,
-		time(NULL),
-		age,
-		r->fieldmap[VALID_SIGHTING_COUNT]->parsed.i);
+	id = db_sighting_insert(r->arg,
+		kpp->parsed.i, /* placeid */
+		kps->parsed.i, /* speciesid */
+		kpn->parsed.s, /* name */
+		kpe->parsed.s, /* email */
+		cookie, /* cookie */
+		time(NULL), /* ctime */
+		age, /* age */
+		kpc->parsed.i); /* count */
 
-	kutil_info(r,
-		r->fieldmap[VALID_SIGHTING_EMAIL]->parsed.s,
+	if (id == -1) {
+		kutil_warnx(r, kpe->parsed.s, "db_sighting_insert");
+		http_open(r, KHTTP_403);
+		return;
+	}
+
+	kutil_info(r, kpe->parsed.s,
 		"slug sighting: species-%" PRId64 
-		", place-%" PRId64 ", count %" PRId64,
-		r->fieldmap[VALID_SIGHTING_SPECIESID]->parsed.i,
-		r->fieldmap[VALID_SIGHTING_PLACEID]->parsed.i,
-		r->fieldmap[VALID_SIGHTING_COUNT]->parsed.i);
+		", place-%" PRId64 ", count %" PRId64 ": %" PRId64,
+		kps->parsed.i, kpp->parsed.i, kpc->parsed.i, id);
 
-	http_open(r, KHTTP_201);
+	http_open(r, KHTTP_200);
+	kjson_open(&req, r);
+	kjson_obj_open(&req);
+	kjson_putintp(&req, "cookie", cookie);
+	kjson_putintp(&req, "id", id);
+	kjson_obj_close(&req);
+	kjson_close(&req);
 }
 
 int
@@ -103,7 +143,7 @@ main(void)
 		kutil_errx(&r, NULL, 
 			"khttp_parse: %s", kcgi_strerror(er));
 
-	if (PAGE__MAX == r.page) {
+	if (r.page == PAGE__MAX) {
 		http_open(&r, KHTTP_404);
 		khttp_free(&r);
 		return EXIT_SUCCESS;
@@ -123,7 +163,16 @@ main(void)
 		return EXIT_FAILURE;
 	}
 
-	send_submit(&r);
+	switch (r.page) {
+	case PAGE_DELETE:
+		send_delete(&r);
+		break;
+	case PAGE_SUBMIT:
+		send_submit(&r);
+		break;
+	default:
+		abort();
+	}
 
 	db_close(r.arg);
 	khttp_free(&r);
