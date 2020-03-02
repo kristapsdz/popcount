@@ -27,3 +27,5 @@ INSERT INTO species (name, id) VALUES ('Felimare tricolor', 4);
 INSERT INTO species (name, id) VALUES ('Paraflabellina gabinierei', 5);
 INSERT INTO species (name, id) VALUES ('Paraflabellina ischitana', 6);
 INSERT INTO species (name, id) VALUES ('Prostheceraeus roseus', 7);
+INSERT INTO species (name, id) VALUES ('Octopus vulgaris', 8);
+INSERT INTO species (name, id) VALUES ('Sepia officinalis', 9);

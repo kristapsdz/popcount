@@ -3,31 +3,30 @@ DATADIR		 = /vhosts/kristaps.bsd.lv/data
 
 sinclude Makefile.local
 
-OBJS 		 = db.o main.o
-CPPFLAGS	+= -I/usr/local/include
-CFLAGS	  	+= -g -W -Wall -Wextra -Wmissing-prototypes
-CFLAGS	  	+= -Wstrict-prototypes -Wwrite-strings -Wno-unused-parameter
-CFLAGS		+= -DDATADIR=\"$(DATADIR)\"
-LDFLAGS		+= -L/usr/local/lib
-LDADD		 = -lkcgi -lkcgijson -lsqlbox -lsqlite3 -lz -lpthread -lm
+OBJS 		  = db.o main.o
+CFLAGS	  	 += -g -W -Wall -Wextra -Wmissing-prototypes
+CFLAGS	  	 += -Wstrict-prototypes -Wwrite-strings -Wno-unused-parameter
+CFLAGS		 += -DDATADIR=\"$(DATADIR)\"
+CFLAGS		+!= pkg-config --cflags kcgi-json sqlbox
+LIBS		 != pkg-config --libs --static kcgi-json sqlbox
 
-all: slugcount.cgi
+all: popcount.cgi
 
 install: all
 	mkdir -p $(PREFIX)/cgi-bin
 	mkdir -p $(PREFIX)/data
-	install -o www -m 0500 slugcount.cgi $(PREFIX)/cgi-bin
-	install -o www -m 0600 slugcount.db $(PREFIX)/data
+	install -o www -m 0500 popcount.cgi $(PREFIX)/cgi-bin
+	install -o www -m 0600 popcount.db $(PREFIX)/data
 
 update: all
 	mkdir -p $(PREFIX)/cgi-bin
-	install -o www -m 0500 slugcount.cgi $(PREFIX)/cgi-bin
+	install -o www -m 0500 popcount.cgi $(PREFIX)/cgi-bin
 
-slugcount.cgi: $(OBJS) slugcount.db
-	$(CC) -o $@ -static $(OBJS) $(LDFLAGS) $(LDADD)
+popcount.cgi: $(OBJS) popcount.db
+	$(CC) -o $@ -static $(OBJS) $(LIBS)
 
 clean:
-	rm -f $(OBJS) slugcount.cgi db.c extern.h slugcount.db db.sql
+	rm -f $(OBJS) popcount.cgi db.c extern.h popcount.db db.sql
 
 $(OBJS): extern.h
 
@@ -40,7 +39,7 @@ extern.h: db.ort
 db.sql: db.ort
 	ort-sql db.ort >$@
 
-slugcount.db: db.sql db.default.sql
+popcount.db: db.sql db.default.sql
 	rm -f $@
 	sqlite3 $@ < db.sql
 	sqlite3 $@ < db.default.sql

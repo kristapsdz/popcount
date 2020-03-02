@@ -110,7 +110,7 @@ send_nsubmit(struct kreq *r)
 	}
 
 	kutil_info(r, kpe->parsed.s,
-		"slug non-sighting: place-%" PRId64,
+		"species non-sighting: place-%" PRId64,
 		kpp->parsed.i);
 
 	http_open(r, KHTTP_201);
@@ -152,7 +152,7 @@ send_submit(struct kreq *r)
 	}
 
 	kutil_info(r, kpe->parsed.s,
-		"slug sighting: species-%" PRId64 
+		"species sighting: species-%" PRId64 
 		", place-%" PRId64 ", count %" PRId64 ": %" PRId64,
 		kps->parsed.i, kpp->parsed.i, kpc->parsed.i, id);
 
@@ -184,9 +184,9 @@ main(void)
 		return EXIT_SUCCESS;
 	}
 
-	if ((r.arg = db_open(DATADIR "/slugcount.db")) == NULL) {
+	if ((r.arg = db_open(DATADIR "/popcount.db")) == NULL) {
 		kutil_errx(&r, NULL, "db_open: %s", 
-			DATADIR "/slugcount.db");
+			DATADIR "/popcount.db");
 		khttp_free(&r);
 		return EXIT_SUCCESS;
 	}
